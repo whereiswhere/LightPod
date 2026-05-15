@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<resources>
+    <string name="app_name">Light Pod</string>
+    <string name="nav_artists">Artists</string>
+    <string name="nav_albums">Albums</string>
+    <string name="nav_songs">Songs</string>
+    <string name="nav_now_playing">Now Playing</string>
+    <string name="nav_search">Search</string>
+    <string name="search_no_results">No results for "%s"</string>
+    <string name="permission_required">Music access permission required</string>
+    <string name="volume">volume</string>
+    <plurals name="artist_album_count">
+        <item quantity="one">%d album</item>
+        <item quantity="other">%d albums</item>
+    </plurals>
+</resources>

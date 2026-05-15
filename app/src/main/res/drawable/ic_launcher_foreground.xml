@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<vector
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108"
+>
+
+    <!-- Black rounded square -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M38,30 L70,30 A10,10 0 0 1 80,40
+                          L80,70 A10,10 0 0 1 70,80
+                          L38,80 A10,10 0 0 1 28,70
+                          L28,40 A10,10 0 0 1 38,30 Z"
+    />
+
+    <!-- White play triangle -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M44,42 L44,66 L68,54 Z"
+    />
+
+</vector>

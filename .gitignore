@@ -1,0 +1,19 @@
+# Build outputs
+app/build
+build
+.gradle
+
+# Font — too large, download separately
+app/src/main/res/font/*.ttf
+
+# Local config
+local.properties
+*.iml
+.idea
+captures
+.externalNativeBuild
+.cxx
+
+# masOS
+.DS_Store
+**/.DS_Store
