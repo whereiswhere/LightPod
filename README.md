@@ -20,7 +20,7 @@ Download the .apk file in the [Release](https://github.com/whereiswhere/LightPod
 The app reads standard audio file metadata (ID3, Vorbis comments, etc.)
 via Android MediaStore.
 
-I tested some songs bought from iTunes Store, The song information (title, artist, album, etc.) seems not showing properly in Light Pod, for this, I suggest using some music tagger apps like [MusicBrainz](https://musicbrainz.org).
+I tested some songs bought from iTunes Store, The song information (title, artist, album, etc.) seems not showing properly in Light Pod, for this, I suggest using some music tagger apps like [MusicBrainz](https://musicbrainz.org)[free].
 
 ## Font
 Light Pod uses Noto Sans SC for full Latin and Chinese character support. The font file is included in the repository.
