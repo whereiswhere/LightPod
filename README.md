@@ -16,7 +16,7 @@ On first launch the app, please allow to access music and audio.
 
 Light Pod loads and reads the same songs that LightOS' Music tool does, that is, you add songs to Light Pod by using [Light Phone Dashboard](https://dashboard.thelightphone.com).
 
-Additonally, Light Pod could also read songs from the Music folder (sdcard/Music/), they will be merged with Light Phone Dashboard source.
+Additonally, Light Pod could also read songs from the Music folder (sdcard/Music/), they will be merged with Light Phone Dashboard source. **Not all audio format supported**
 
 ## Download
 Download the .apk file in the [Release](https://github.com/whereiswhere/LightPod/releases) page
