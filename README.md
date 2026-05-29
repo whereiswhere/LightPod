@@ -19,7 +19,7 @@ Light Pod loads and reads the same songs that LightOS' Music tool does, that is,
 Additonally, Light Pod could also read songs from the Music folder (sdcard/Music/), they will be merged with Light Phone Dashboard source.
 
 ## Download
-Download the .apk file in the [Release](https://github.com/whereiswhere/LightPod/releases/tag/v1.0) page
+Download the .apk file in the [Release](https://github.com/whereiswhere/LightPod/releases) page
 
 ## Note
 The app reads standard audio file metadata (ID3, Vorbis comments, etc.)
