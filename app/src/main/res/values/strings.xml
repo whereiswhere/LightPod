@@ -5,10 +5,19 @@
     <string name="nav_albums">Albums</string>
     <string name="nav_songs">Songs</string>
     <string name="nav_now_playing">Now Playing</string>
-    <string name="nav_search">Search</string>
     <string name="search_no_results">No results for "%s"</string>
     <string name="permission_required">Music access permission required</string>
     <string name="volume">volume</string>
+    <string
+        name="onboarding_permission"
+    >Music access is required to load your library.</string>
+    <string
+        name="onboarding_sources"
+    >Songs are loaded from Light Phone Dashboard and the sdcard/Music/ folder. Files from both sources are merged automatically.</string>
+    <string
+        name="onboarding_formats"
+    >Songs are converted to MP3 by Dashboard. Files added manually to sdcard/Music/ are loaded as-is.</string>
+    <string name="onboarding_grant">Grant Permission</string>
     <plurals name="artist_album_count">
         <item quantity="one">%d album</item>
         <item quantity="other">%d albums</item>

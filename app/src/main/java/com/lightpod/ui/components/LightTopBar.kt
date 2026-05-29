@@ -1,5 +1,6 @@
-package com.lightmusic.ui.components
+package com.lightpod.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -29,9 +30,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lightmusic.ui.theme.LightOSWhite
-import com.lightmusic.ui.theme.NotoSansSC
-import androidx.compose.foundation.background
+import com.lightpod.ui.theme.LightOSWhite
+import com.lightpod.ui.theme.NotoSansSC
 
 @Composable
 fun LightTopBar(
@@ -60,7 +60,6 @@ fun LightTopBar(
             .fillMaxWidth()
             .height(52.dp)
     ) {
-        // Back button — Material Icon, consistent with bottom bar
         Box(
             modifier = Modifier
                 .align(Alignment.CenterStart)
@@ -92,6 +91,7 @@ fun LightTopBar(
                     fontFamily    = NotoSansSC,
                     fontSize      = 22.sp,
                     color         = LightOSWhite,
+                    letterSpacing = 0.sp,
                     platformStyle = PlatformTextStyle(includeFontPadding = false)
                 ),
                 onTextLayout    = { textLayout = it },
@@ -126,7 +126,6 @@ fun LightTopBar(
                     .onFocusChanged { isFocused = it.isFocused }
             )
 
-            // Underline — sibling to text field, not inside it
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

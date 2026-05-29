@@ -1,4 +1,4 @@
-package com.lightmusic.data
+package com.lightpod.data
 
 import android.net.Uri
 
@@ -6,10 +6,10 @@ data class Song(
     val id: Long,
     val title: String,
     val artist: String,
-    val albumArtist: String,   // ← new: used for artist grouping
+    val albumArtist: String,
     val album: String,
     val duration: Long,
-    val track: Int,            // ← new: track number for ordering
+    val track: Int,
     val uri: Uri
 ) {
     val durationFormatted: String get() {

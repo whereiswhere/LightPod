@@ -1,4 +1,4 @@
-package com.lightmusic.ui.components
+package com.lightpod.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,7 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.lightmusic.ui.theme.LightOSWhite
+import com.lightpod.ui.theme.LightOSWhite
 
 @Composable
 fun LightBottomBar(

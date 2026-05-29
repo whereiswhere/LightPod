@@ -1,4 +1,4 @@
-package com.lightmusic
+package com.lightpod
 
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C

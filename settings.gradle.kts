@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "LightMusic"
+rootProject.name = "LightPod"
 include(":app")
