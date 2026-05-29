@@ -1,11 +1,14 @@
-package com.lightmusic.ui.screens
+package com.lightpod.ui.screens
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Lyrics
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.SkipNext
@@ -21,17 +24,17 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.lightmusic.ui.theme.LightOSWhite
-import kotlinx.coroutines.delay
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.lightmusic.ui.theme.NotoSansSC
-import androidx.compose.ui.text.style.LineHeightStyle
+import com.lightpod.ui.MusicViewModel
+import com.lightpod.ui.theme.LightOSWhite
+import com.lightpod.ui.theme.NotoSansSC
+import kotlinx.coroutines.delay
 
 private val npMeta = TextStyle(
     fontFamily = NotoSansSC,
@@ -46,7 +49,7 @@ private val npTitle = TextStyle(
 )
 
 @Composable
-fun NowPlayingScreen(vm: MusicViewModel) {
+fun NowPlayingScreen(vm: MusicViewModel, onShowLyrics: () -> Unit) {
     val song = vm.currentSong ?: return
 
     var currentPosition by remember { mutableStateOf(vm.player?.currentPosition?.coerceAtLeast(0L) ?: 0L) }
@@ -76,29 +79,36 @@ fun NowPlayingScreen(vm: MusicViewModel) {
     ) {
         Spacer(modifier = Modifier.height(38.dp))
 
-        Text(
-            text      = song.artist,
-            style     = npTitle.copy(
-                    lineHeightStyle = LineHeightStyle(
-                        alignment = LineHeightStyle.Alignment.Center,
-                        trim      = LineHeightStyle.Trim.LastLineBottom
-                    )
-                ),
-            color     = LightOSWhite,
-            textAlign = TextAlign.Center,
-            modifier  = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-        )
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text      = song.artist,
+                style     = npTitle,
+                color     = LightOSWhite,
+                textAlign = TextAlign.Center,
+                modifier  = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+            )
+            if (vm.currentLyrics != null) {
+                Icon(
+                    imageVector        = Icons.Outlined.Lyrics,
+                    contentDescription = "Lyrics",
+                    tint               = LightOSWhite,
+                    modifier           = Modifier
+                        .align(Alignment.TopCenter)
+                        .offset(y = (-24).dp)
+                        .size(20.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication        = null
+                        ) { onShowLyrics() }
+                )
+            }
+        }
 
         Text(
             text      = song.title,
-            style     = npTitle.copy(
-                    lineHeightStyle = LineHeightStyle(
-                        alignment = LineHeightStyle.Alignment.Center,
-                        trim      = LineHeightStyle.Trim.FirstLineTop
-                    )
-                ),
+            style     = npTitle,
             color     = LightOSWhite,
             textAlign = TextAlign.Center,
             maxLines  = 1,
@@ -112,10 +122,9 @@ fun NowPlayingScreen(vm: MusicViewModel) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Total duration
         Text(
             text      = formatMs(duration),
-            style     = npMeta,       // ← was bodyLarge
+            style     = npMeta,
             color     = LightOSWhite,
             textAlign = TextAlign.Center
         )
@@ -130,7 +139,6 @@ fun NowPlayingScreen(vm: MusicViewModel) {
 
         Spacer(modifier = Modifier.height(2.dp))
 
-        // ── Playback controls — all Material Icons ────────────────
         Row(
             modifier              = Modifier
                 .fillMaxWidth()
@@ -167,10 +175,10 @@ fun NowPlayingScreen(vm: MusicViewModel) {
 
         Spacer(modifier = Modifier.height(18.dp))
 
-        // Current position
+        // Keeps layout stable while playing; visible only when paused
         Text(
             text      = formatMs(currentPosition),
-            style     = npMeta,       // ← was bodyLarge
+            style     = npMeta,
             color     = LightOSWhite,
             textAlign = TextAlign.Center,
             modifier  = Modifier.alpha(if (vm.isPlaying) 0f else 1f)
@@ -180,7 +188,6 @@ fun NowPlayingScreen(vm: MusicViewModel) {
     }
 }
 
-// ── Tap target wrapper ────────────────────────────────────────────
 @Composable
 private fun TapTarget(
     size: Dp,
@@ -196,7 +203,6 @@ private fun TapTarget(
     )
 }
 
-// ── Progress bar ──────────────────────────────────────────────────
 @Composable
 private fun LightProgressBar(
     progress: Float,

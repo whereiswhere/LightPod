@@ -1,4 +1,4 @@
-package com.lightmusic.ui.components
+package com.lightpod.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -12,9 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import com.lightmusic.ui.theme.LightOSWhite
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.lightpod.ui.theme.LightOSWhite
 
 @Composable
 fun MusicListItem(
@@ -39,7 +39,6 @@ fun MusicListItem(
             ),
         verticalAlignment = Alignment.Top
     ) {
-        // ── Prefix — only rendered when present ───────────────────
         if (prefix != null) {
             Text(
                 text      = prefix,
@@ -54,16 +53,15 @@ fun MusicListItem(
             Spacer(modifier = Modifier.width(8.dp))
         }
 
-        // ── Title + subtitle ──────────────────────────────────────
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text  = title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = LightOSWhite,
+                text     = title,
+                style    = MaterialTheme.typography.bodyLarge,
+                color    = LightOSWhite,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
-                .fillMaxWidth()
+                    .fillMaxWidth()
                     .drawBehind {
                         if (isCurrentlyPlaying) {
                             drawLine(
@@ -77,9 +75,11 @@ fun MusicListItem(
             )
             if (subtitle != null) {
                 Text(
-                    text  = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = LightOSWhite
+                    text     = subtitle,
+                    style    = MaterialTheme.typography.bodyMedium,
+                    color    = LightOSWhite,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

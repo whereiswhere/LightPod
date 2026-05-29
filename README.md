@@ -2,6 +2,8 @@
 
 A music player for [Light Phone III](https://www.thelightphone.com).
 
+> Note: v1.1 changes the app package name. If you have v1.0 installed, please uninstall it first before installing v1.1. Your music library will load automatically after install — no data is lost since everything comes from your device's music files.
+
 ## Some Screenshots
 
 <img width="200" alt="1000000709" src="https://github.com/user-attachments/assets/795cc3df-4d8a-4eda-aa59-9b349ab118b0" />
@@ -13,6 +15,9 @@ A music player for [Light Phone III](https://www.thelightphone.com).
 On first launch the app, please allow to access music and audio.
 
 Light Pod loads and reads the same songs that LightOS' Music tool does, that is, you add songs to Light Pod by using [Light Phone Dashboard](https://dashboard.thelightphone.com).
+
+Additonally, Light Pod could also read songs from the Music folder (sdcard/Music/), they will be merged with Light Phone Dashboard source.
+
 ## Download
 Download the .apk file in the [Release](https://github.com/whereiswhere/LightPod/releases/tag/v1.0) page
 

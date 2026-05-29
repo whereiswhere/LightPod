@@ -1,4 +1,4 @@
-package com.lightmusic.ui.screens
+package com.lightpod.ui
 
 import android.app.Application
 import android.content.ComponentName
@@ -17,11 +17,11 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
-import com.lightmusic.PlaybackService
-import com.lightmusic.data.Album
-import com.lightmusic.data.Artist
-import com.lightmusic.data.MusicRepository
-import com.lightmusic.data.Song
+import com.lightpod.PlaybackService
+import com.lightpod.data.Album
+import com.lightpod.data.Artist
+import com.lightpod.data.MusicRepository
+import com.lightpod.data.Song
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -38,7 +38,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     var isLoading by mutableStateOf(true)
     private var hasLoadedOnce = false
 
-    // ── Scroll persistence: index + pixel offset ──────────────────
+    var currentLyrics by mutableStateOf<String?>(null); private set
+    private var lyricsFetchJob: Job? = null
+
+    // ── Scroll persistence ────────────────────────────────────────
     private val scrollPositions = mutableStateMapOf<String, Pair<Int, Int>>()
     fun getScrollIndex(key: String)  = scrollPositions[key]?.first  ?: 0
     fun getScrollOffset(key: String) = scrollPositions[key]?.second ?: 0
@@ -48,7 +51,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private var reloadJob: Job? = null
 
-    // ── Playback via MediaController → PlaybackService ────────────
+    // ── Playback ──────────────────────────────────────────────────
     private var mediaController: MediaController? = null
     val player: Player? get() = mediaController
 
@@ -58,9 +61,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     var isLooping   by mutableStateOf(false)      ; private set
     private var _queue = listOf<Song>()
 
-    // ── Volume overlay ────────────────────────────────────────────────
+    // ── Volume overlay ────────────────────────────────────────────
     var volumeVisible by mutableStateOf(false); private set
-    var volumeLevel   by mutableStateOf(0f);    private set
+    var volumeLevel   by mutableStateOf(0f)   ; private set
     private var volumeHideJob: Job? = null
 
     private val playerListener = object : Player.Listener {
@@ -69,7 +72,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             val index = mediaController?.currentMediaItemIndex ?: return
-            if (index in _queue.indices) currentSong = _queue[index]
+            if (index in _queue.indices) {
+                currentSong = _queue[index]
+                fetchLyrics(_queue[index])
+            }
         }
         override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
             isShuffling = shuffleModeEnabled
@@ -77,18 +83,16 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         override fun onRepeatModeChanged(repeatMode: Int) {
             isLooping = repeatMode == Player.REPEAT_MODE_ONE
         }
-
         override fun onPlaybackStateChanged(playbackState: Int) {
             if (playbackState == Player.STATE_ENDED) {
-                // Queue exhausted naturally — clear current song so
-                // "Now Playing" button and underline indicators disappear
-                currentSong = null
-                isPlaying   = false
+                currentSong   = null
+                isPlaying     = false
+                currentLyrics = null
             }
         }
     }
 
-    // ── MediaStore observer (stored so it can be unregistered) ────
+    // ── MediaStore observer ───────────────────────────────────────
     private val contentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
             reloadJob?.cancel()
@@ -100,7 +104,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     init {
-        // Connect to PlaybackService
         val token = SessionToken(
             application,
             ComponentName(application, PlaybackService::class.java)
@@ -114,7 +117,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 isPlaying   = controller.isPlaying
                 isShuffling = controller.shuffleModeEnabled
                 isLooping   = controller.repeatMode == Player.REPEAT_MODE_ONE
-                // If queue already ended before we connected, clear rather than restore
                 if (controller.playbackState == Player.STATE_ENDED) {
                     currentSong = null
                 } else {
@@ -123,8 +125,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             } catch (_: Exception) { }
         }, ContextCompat.getMainExecutor(application))
 
-
-        // Watch for new audio files
         application.contentResolver.registerContentObserver(
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
             true,
@@ -134,6 +134,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadMusic() {
         if (!hasLoadedOnce) isLoading = true
+
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.scanMusicFolder()
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
             val (a, b, s) = repository.loadAll()
             withContext(Dispatchers.Main) {
@@ -142,53 +147,103 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 songs         = s
                 isLoading     = false
                 hasLoadedOnce = true
-                // Attempt to restore current song now that songs are available
                 restorePlaybackState()
             }
         }
     }
 
-    /**
-     * After process death: the service keeps playing but the ViewModel is new.
-     * This rebuilds _queue and currentSong from the controller's media items,
-     * matched by the mediaId we embedded when calling playSong().
-     */
-     private fun restorePlaybackState() {
-         val controller = mediaController ?: return
-         if (songs.isEmpty()) return
+    private fun restorePlaybackState() {
+        val controller = mediaController ?: return
+        if (songs.isEmpty()) return
 
-         // If queue naturally ended, clear current song rather than restoring it
-         if (controller.playbackState == Player.STATE_ENDED) {
-             currentSong = null
-             return
-         }
+        if (controller.playbackState == Player.STATE_ENDED) {
+            currentSong = null
+            return
+        }
 
-         if (_queue.isEmpty() && controller.mediaItemCount > 0) {
-             _queue = (0 until controller.mediaItemCount).mapNotNull { i ->
-                 try {
-                     val id = controller.getMediaItemAt(i).mediaId
-                     songs.find { it.id.toString() == id }
-                 } catch (_: Exception) { null }
-             }
-         }
+        if (_queue.isEmpty() && controller.mediaItemCount > 0) {
+            _queue = (0 until controller.mediaItemCount).mapNotNull { i ->
+                try {
+                    val id = controller.getMediaItemAt(i).mediaId
+                    songs.find { it.id.toString() == id }
+                } catch (_: Exception) { null }
+            }
+        }
 
-         if (currentSong == null) {
-             val id = controller.currentMediaItem?.mediaId ?: return
-             currentSong = songs.find { it.id.toString() == id }
-         }
-     }
+        if (currentSong == null) {
+            val id   = controller.currentMediaItem?.mediaId ?: return
+            val song = songs.find { it.id.toString() == id } ?: return
+            currentSong = song
+            fetchLyrics(song)
+        }
+    }
 
+    private fun fetchLyrics(song: Song) {
+        lyricsFetchJob?.cancel()
+        lyricsFetchJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val mimeType = getApplication<Application>()
+                    .contentResolver
+                    .getType(song.uri) ?: "audio/mpeg"
+                val ext = when (mimeType) {
+                    "audio/mpeg", "audio/mp3"         -> "mp3"
+                    "audio/mp4", "audio/m4a",
+                    "audio/aac", "audio/x-aac"        -> "m4a"
+                    "audio/flac", "audio/x-flac"      -> "flac"
+                    "audio/ogg", "audio/x-ogg"        -> "ogg"
+                    "audio/opus"                       -> "opus"
+                    "audio/x-wav", "audio/wav",
+                    "audio/wave"                       -> "wav"
+                    "audio/x-ms-wma"                   -> "wma"
+                    "audio/aiff", "audio/x-aiff"      -> "aiff"
+                    else                               -> "mp3"
+                }
+
+                val tmp = java.io.File(
+                    getApplication<Application>().cacheDir,
+                    "${song.id}.$ext"
+                )
+                getApplication<Application>()
+                    .contentResolver
+                    .openInputStream(song.uri)
+                    ?.use { input -> tmp.outputStream().use { input.copyTo(it) } }
+
+                val audioFile = org.jaudiotagger.audio.AudioFileIO.read(tmp)
+                val lyrics = audioFile.tag?.let { tag ->
+                    tag.getFirst(org.jaudiotagger.tag.FieldKey.LYRICS)
+                        ?.takeIf { it.isNotBlank() }
+                    ?:
+                    try {
+                        tag.getFields("TXXX")
+                            ?.asSequence()
+                            ?.mapNotNull { field ->
+                                val frame = field as? org.jaudiotagger.tag.id3.AbstractID3v2Frame
+                                val body  = frame?.body as? org.jaudiotagger.tag.id3.framebody.FrameBodyTXXX
+                                if (body?.description == "USLT") {
+                                    body.firstTextValue?.takeIf { it.isNotBlank() }
+                                } else null
+                            }
+                            ?.firstOrNull()
+                    } catch (_: Exception) { null }
+                }
+                withContext(Dispatchers.Main) { currentLyrics = lyrics }
+            } catch (_: Exception) {
+                withContext(Dispatchers.Main) { currentLyrics = null }
+            }
+        }
+    }
 
     fun playSong(song: Song, queue: List<Song>) {
         val controller = mediaController ?: return
         _queue      = queue
         currentSong = song
-        val index   = queue.indexOf(song).coerceAtLeast(0)
+        fetchLyrics(song)
+        val index = queue.indexOf(song).coerceAtLeast(0)
         controller.setMediaItems(
             queue.map { s ->
                 MediaItem.Builder()
                     .setUri(s.uri)
-                    .setMediaId(s.id.toString())  // used for state restoration
+                    .setMediaId(s.id.toString())
                     .build()
             },
             index, 0L
@@ -204,26 +259,18 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     fun skipNext() {
         val c = mediaController ?: return
-        // Turn off repeat when manually skipping
-        if (c.repeatMode != Player.REPEAT_MODE_OFF) {
-            c.repeatMode = Player.REPEAT_MODE_OFF
-        }
+        if (c.repeatMode != Player.REPEAT_MODE_OFF) c.repeatMode = Player.REPEAT_MODE_OFF
         if (c.hasNextMediaItem()) c.seekToNextMediaItem()
     }
 
     fun skipPrev() {
         val c = mediaController ?: return
-        // Turn off repeat when manually skipping
-        if (c.repeatMode != Player.REPEAT_MODE_OFF) {
-            c.repeatMode = Player.REPEAT_MODE_OFF
-        }
+        if (c.repeatMode != Player.REPEAT_MODE_OFF) c.repeatMode = Player.REPEAT_MODE_OFF
         if (c.currentPosition > 3000L) c.seekTo(0L)
         else if (c.hasPreviousMediaItem()) c.seekToPreviousMediaItem()
     }
 
-    fun seekTo(positionMs: Long) {
-        mediaController?.seekTo(positionMs)
-    }
+    fun seekTo(positionMs: Long) { mediaController?.seekTo(positionMs) }
 
     fun toggleShuffle() {
         val c = mediaController ?: return
@@ -247,9 +294,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
+        lyricsFetchJob?.cancel()
+        getApplication<Application>().cacheDir
+            .listFiles()
+            ?.forEach { it.delete() }
         mediaController?.removeListener(playerListener)
         mediaController?.release()
-        getApplication<Application>().contentResolver.unregisterContentObserver(contentObserver)
+        getApplication<Application>().contentResolver
+            .unregisterContentObserver(contentObserver)
         super.onCleared()
     }
 }

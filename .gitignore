@@ -2,9 +2,7 @@
 app/build
 build
 .gradle
-
-# Font — too large, download separately
-app/src/main/res/font/*.ttf
+.kotlin
 
 # Local config
 local.properties
@@ -13,6 +11,8 @@ local.properties
 captures
 .externalNativeBuild
 .cxx
+*.jks
+*.keystore
 
 # masOS
 .DS_Store

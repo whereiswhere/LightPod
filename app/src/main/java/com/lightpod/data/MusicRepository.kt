@@ -1,7 +1,9 @@
-package com.lightmusic.data
+package com.lightpod.data
 
 import android.content.ContentUris
 import android.content.Context
+import android.media.MediaScannerConnection
+import android.os.Environment
 import android.provider.MediaStore
 
 class MusicRepository(private val context: Context) {
@@ -9,10 +11,7 @@ class MusicRepository(private val context: Context) {
     fun loadAll(): Triple<List<Artist>, List<Album>, List<Song>> {
         val raw = querySongs()
 
-        // ── Artists — split by MusicBrainz join phrases ───────────
-        // Each individual artist gets their own entry.
-        // Artist "b" who performed one song in album "a" gets their
-        // own Artist entry, with Album "a" containing only their songs.
+        // ── Artists ───────────────────────────────────────────────
         val artistToSongs = mutableMapOf<String, MutableList<Song>>()
         for (song in raw) {
             for (individualArtist in song.artist.splitArtists()) {
@@ -30,8 +29,6 @@ class MusicRepository(private val context: Context) {
                         .map { (albumName, albumSongs) ->
                             Album(
                                 title  = albumName,
-                                // Always show the album artist as subtitle,
-                                // not the individual artist being viewed
                                 artist = albumSongs
                                     .firstOrNull { it.albumArtist.isNotBlank() }
                                     ?.albumArtist ?: albumSongs.first().artist,
@@ -43,8 +40,7 @@ class MusicRepository(private val context: Context) {
             }
             .sortedBy { it.name }
 
-
-        // ── Albums — unchanged, uses albumArtist for global list ───
+        // ── Albums ────────────────────────────────────────────────
         val albums = raw
             .groupBy { it.album }
             .map { (albumName, albumSongs) ->
@@ -63,8 +59,33 @@ class MusicRepository(private val context: Context) {
         return Triple(artists, albums, songs)
     }
 
+    fun scanMusicFolder() {
+        val musicDir = Environment.getExternalStoragePublicDirectory(
+            Environment.DIRECTORY_MUSIC
+        )
+        val audioExtensions = setOf(
+            "mp3", "flac", "m4a", "aac", "ogg", "opus", "wav", "mp4",
+            "wma", "aiff", "aif"
+        )
+        val filesToScan = try {
+            musicDir.walkTopDown()
+                .filter { it.isFile && it.extension.lowercase() in audioExtensions }
+                .map    { it.absolutePath }
+                .toList()
+        } catch (_: Exception) {
+            emptyList()
+        }
+        if (filesToScan.isEmpty()) return
+
+        MediaScannerConnection.scanFile(
+            context,
+            filesToScan.toTypedArray(),
+            null,
+            null
+        )
+    }
+
     private fun querySongs(): List<Song> {
-        val songs      = mutableListOf<Song>()
         val collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
 
         val projection = arrayOf(
@@ -77,6 +98,9 @@ class MusicRepository(private val context: Context) {
             MediaStore.Audio.Media.TRACK,
             MediaStore.Audio.Media.RELATIVE_PATH
         )
+
+        data class RawEntry(val song: Song, val inMusicFolder: Boolean)
+        val raw = mutableListOf<RawEntry>()
 
         context.contentResolver.query(
             collection,
@@ -96,38 +120,49 @@ class MusicRepository(private val context: Context) {
 
             while (cursor.moveToNext()) {
                 val path = cursor.getString(pathCol) ?: ""
-                if (path.contains("Recordings", ignoreCase = true) ||
-                    path.contains("Notes",      ignoreCase = true) ||
-                    path.contains("Ringtones",  ignoreCase = true) ||
-                    path.contains("Alarms",     ignoreCase = true)
-                ) continue
+
+                val fromDashboard   = path.startsWith("Download/Persisted/Music/", ignoreCase = true)
+                val fromMusicFolder = path.startsWith("Music/", ignoreCase = true) ||
+                                      path.equals("Music", ignoreCase = true)
+                if (!fromDashboard && !fromMusicFolder) continue
 
                 val rawTrack    = cursor.getInt(trackCol)
                 val trackNumber = if (rawTrack > 1000) rawTrack % 1000 else rawTrack
                 val id          = cursor.getLong(idCol)
 
-                songs.add(
-                    Song(
-                        id          = id,
-                        title       = cursor.getString(titleCol)       ?: "Unknown",
-                        artist      = cursor.getString(artistCol)      ?: "Unknown Artist",
-                        albumArtist = cursor.getString(albumArtistCol) ?: "",
-                        album       = cursor.getString(albumCol)       ?: "Unknown Album",
-                        duration    = cursor.getLong(durationCol),
-                        track       = trackNumber,
-                        uri         = ContentUris.withAppendedId(collection, id)
+                raw.add(
+                    RawEntry(
+                        song = Song(
+                            id          = id,
+                            title       = cursor.getString(titleCol)       ?: "Unknown",
+                            artist      = cursor.getString(artistCol)      ?: "Unknown Artist",
+                            albumArtist = cursor.getString(albumArtistCol) ?: "",
+                            album       = cursor.getString(albumCol)       ?: "Unknown Album",
+                            duration    = cursor.getLong(durationCol),
+                            track       = trackNumber,
+                            uri         = ContentUris.withAppendedId(collection, id)
+                        ),
+                        inMusicFolder = fromMusicFolder
                     )
                 )
             }
         }
-        return songs
+
+        // Deduplicate by (title, artist) — prefer Music folder over Dashboard
+        val seen = LinkedHashMap<Pair<String, String>, RawEntry>()
+        for (entry in raw) {
+            val key      = entry.song.title.trim().lowercase() to
+                           entry.song.artist.trim().lowercase()
+            val existing = seen[key]
+            if (existing == null || (entry.inMusicFolder && !existing.inMusicFolder)) {
+                seen[key] = entry
+            }
+        }
+
+        return seen.values.map { it.song }
     }
 }
 
-// MusicBrainz Picard standard join phrases between separate artists.
-// "Simon & Garfunkel" is ONE artist in MusicBrainz (single entity),
-// so it won't be split — only truly separate collaborating artists
-// joined by these phrases will be split.
 private fun String.splitArtists(): List<String> =
     split(
         " & ",
@@ -141,6 +176,6 @@ private fun String.splitArtists(): List<String> =
         " vs ",
         " and "
     )
-    .map { it.trim() }
+    .map    { it.trim() }
     .filter { it.isNotBlank() }
     .distinct()

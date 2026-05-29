@@ -1,18 +1,23 @@
-package com.lightmusic
+package com.lightpod
 
-import android.content.Context
 import android.media.AudioManager
 import android.os.Bundle
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelProvider
-import com.lightmusic.ui.screens.HomeScreen
-import com.lightmusic.ui.screens.MusicViewModel
-import com.lightmusic.ui.theme.LightMusicTheme
+import com.lightpod.data.AppPreferences
+import com.lightpod.ui.MusicViewModel
+import com.lightpod.ui.screens.HomeScreen
+import com.lightpod.ui.screens.OnboardingScreen
+import com.lightpod.ui.theme.LightMusicTheme
 
 class MainActivity : ComponentActivity() {
 
@@ -33,7 +38,17 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             LightMusicTheme {
-                HomeScreen(vm = vm)
+                val prefs = remember { AppPreferences(applicationContext) }
+                var onboardingDone by remember { mutableStateOf(prefs.hasSeenOnboarding) }
+
+                if (onboardingDone) {
+                    HomeScreen(vm = vm)
+                } else {
+                    OnboardingScreen {
+                        prefs.hasSeenOnboarding = true
+                        onboardingDone          = true
+                    }
+                }
             }
         }
     }

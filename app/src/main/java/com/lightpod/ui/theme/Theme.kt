@@ -1,4 +1,4 @@
-package com.lightmusic.ui.theme
+package com.lightpod.ui.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
