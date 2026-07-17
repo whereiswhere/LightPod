@@ -1,3 +1,10 @@
+import java.util.Properties
+
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -18,10 +25,17 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile     = file("../lightpod.jks")
-            storePassword = "REMOVED"
-            keyAlias      = "lightpod"
-            keyPassword   = "REMOVED"
+            val storePath = keystoreProps.getProperty("LIGHTPOD_STORE_FILE")
+                ?: System.getenv("LIGHTPOD_STORE_FILE")
+            if (storePath != null) {
+                storeFile     = file(storePath)
+                storePassword = keystoreProps.getProperty("LIGHTPOD_STORE_PASSWORD")
+                    ?: System.getenv("LIGHTPOD_STORE_PASSWORD")
+                keyAlias      = keystoreProps.getProperty("LIGHTPOD_KEY_ALIAS")
+                    ?: System.getenv("LIGHTPOD_KEY_ALIAS")
+                keyPassword   = keystoreProps.getProperty("LIGHTPOD_KEY_PASSWORD")
+                    ?: System.getenv("LIGHTPOD_KEY_PASSWORD")
+            }
         }
     }
 
